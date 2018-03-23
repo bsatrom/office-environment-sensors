@@ -2,7 +2,7 @@
   Office Environment Sensors Example (Rosie Hub Compartible)
   Brandon Satrom
   Original Creation Date: July 26, 2016
-  Updated July 26th, 2016
+  Updated March 23th, 2018
 
   This sketch measures the temperature, humidity, and barometric pressure and
   logs those readings via MQTT to a node-red instance running as a Smart Home
@@ -38,17 +38,12 @@
                        SparkFun Photon Weather Shield
 *******************************************************************************/
 #include "SparkFun_Photon_Weather_Shield_Library.h"
-#include "MQTT.h"
 
-// Configure MQTT Server
-byte server[] = { 192, 168, 10, 92 }; //Replace with local network MQTT Server
-
- MQTT client(server, 1883, mqtt_callback);
-
-float humidity = 0;
-float tempf = 0;
-float pascals = 0;
+double humidity = 0;
+double tempf = 0;
+double pascals = 0;
 float baroTemp = 0;
+double pressue = pascals/100;
 
 long lastPrint = 0;
 
@@ -61,27 +56,16 @@ void setup()
 {
     Serial.begin(9600);   // open serial over USB at 9600 baud
 
+    Particle.variable("temp", tempf);
+    Particle.variable("humidity", humidity);
+    Particle.variable("pressure", pressue);
+
     sensor.begin();
     sensor.setModeBarometer();//Set to Barometer Mode
     sensor.setOversampleRate(7); // Set Oversample rate
     sensor.enableEventFlags(); //Necessary register calls to enble temp, baro and alt
-
-    //Init MQTT client
-    //connect to the server
-    client.connect("Home_Office_Client");
 }
 //---------------------------------------------------------------
-
-void mqtt_callback(char* topic, byte* payload, unsigned int length)
-{
-    char p[length + 1];
-    memcpy(p, payload, length);
-    p[length] = NULL;
-    String message(p);
-
-    Serial.println("Ack: ");
-    Serial.println(message);
-}
 
 void loop()
 {
@@ -91,8 +75,6 @@ void loop()
         lastPrint = millis();
 
         getWeather();
-
-        logWeather(); //Log to NodeRed
         printInfo(); //Print to Serial
       }
 }
@@ -118,33 +100,6 @@ void getWeather()
   //float altf = sensor.readAltitudeFt();
 }
 //---------------------------------------------------------------
-
-void logWeather()
-{
-  Serial.print("Connected: ");
-  Serial.println(client.isConnected());
-
-  if(!client.isConnected()) {
-    client.connect("Home_Office_Client");
-  }
-
-  if (client.isConnected()) {
-    // get messageid parameter at 4.
-    uint16_t messageid;
-
-    // string of concatenated environmentalValues
-    String values = "{\"environment\": \"office\", \"temp\": " + String(tempf) +
-      ", \"humidity\": " + String(humidity) + ", \"baro\": " + String(baroTemp) +
-      ", \"pressure\": " + String(pascals/100) + "}";
-
-    client.publish("/environment", values, MQTT::QOS1, &messageid);
-
-    Serial.print("MessageId: ");
-    Serial.println(messageid);
-
-    client.disconnect();
-  }
-}
 
 void printInfo()
 {
